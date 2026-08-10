@@ -23,7 +23,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     background: #fafaf8; color: #222; line-height: 1.6;
   }}
   h1 {{ font-size: 22px; margin-bottom: 4px; }}
-  .updated {{ color: #888; font-size: 13px; margin-bottom: 28px; }}
+  .updated {{ color: #888; font-size: 13px; margin-bottom: 12px; }}
+  .tabs {{ display: flex; gap: 8px; margin-bottom: 24px; position: sticky; top: 0; background: #fafaf8; padding: 8px 0; }}
+  .tabs a {{
+    font-size: 13px; padding: 6px 12px; border-radius: 16px; background: #eee;
+    color: #555; text-decoration: none; font-weight: 600;
+  }}
   .category {{ margin-bottom: 32px; }}
   .category h2 {{ font-size: 17px; border-bottom: 2px solid #333; padding-bottom: 6px; }}
   .item {{ padding: 12px 0; border-bottom: 1px solid #e5e5e0; }}
@@ -32,19 +37,33 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .item .meta {{ font-size: 12px; color: #999; margin-top: 3px; }}
   .item .summary {{ font-size: 13px; color: #555; margin-top: 4px; }}
   .empty {{ color: #aaa; font-size: 14px; padding: 12px 0; }}
+  details.more {{ margin-top: 4px; }}
+  details.more summary {{
+    cursor: pointer; color: #2563eb; font-size: 13px; font-weight: 600;
+    padding: 10px 0; list-style: none;
+  }}
+  details.more summary::-webkit-details-marker {{ display: none; }}
+  details.more summary::after {{ content: " ▾"; }}
+  details.more[open] summary::after {{ content: " ▴"; }}
 </style>
 </head>
 <body>
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
+<div class="tabs">
+  <a href="#cat-education">📘 교육</a>
+  <a href="#cat-science">🔬 과학</a>
+  <a href="#cat-policy">🏛 정책</a>
+</div>
 {sections}
 </body>
 </html>
 """
 
-SECTION_TEMPLATE = """<div class="category">
+SECTION_TEMPLATE = """<div class="category" id="cat-{cat_key}">
   <h2>{label} ({count}건)</h2>
-  {items_html}
+  {visible_items_html}
+  {more_html}
 </div>
 """
 
@@ -54,6 +73,8 @@ ITEM_TEMPLATE = """<div class="item">
   {summary_html}
 </div>
 """
+
+VISIBLE_COUNT_PER_CATEGORY = 8
 
 
 def _fmt_published(published_iso: str) -> str:
