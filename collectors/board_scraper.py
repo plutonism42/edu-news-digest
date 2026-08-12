@@ -21,6 +21,24 @@ DATE_PATTERNS = [
 ]
 
 
+BLACKLIST_KEYWORDS = [
+    "소개", "연혁", "오시는길", "찾아오시는", "조직도", "조직 안내", "조직·부서",
+    "사이트맵", "site map", "이용약관", "개인정보", "저작권", "채용정보", "채용실태",
+    "직원검색", "업무협정기관", "CI", "슬로건", "캐릭터", "서체", "일반현황",
+    "비전 및 목표", "민원", "FAQ", "자주묻는질문", "자주 묻는 질문", "국민콜",
+    "영문홈페이지", "ENGLISH", "페이스북", "트위터", "유튜브", "카카오스토리",
+    "네이버 블로그", "네이버 밴드", "바로가기", "홈페이지 바로가기",
+    "API신청", "의견조사", "알림·참여",
+]
+
+
+def _is_menu_link(title: str) -> bool:
+    t = title.strip()
+    if len(t) < 6:  # 너무 짧은 제목은 대부분 메뉴 이름
+        return True
+    return any(kw in t for kw in BLACKLIST_KEYWORDS)
+
+
 def _find_date_in_text(text: str):
     for pattern, _ in DATE_PATTERNS:
         m = re.search(pattern, text)
@@ -62,7 +80,7 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
             continue
 
         title = a_tag.get_text(strip=True)
-        if not title or len(title) < 4:
+        if not title or _is_menu_link(title):
             continue
 
         link = urljoin(source["base_url"], a_tag["href"])
@@ -73,8 +91,10 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
         row_text = el.get_text(" ", strip=True)
         published_dt = _find_date_in_text(row_text)
 
-        # 날짜를 못 찾으면 일단 포함(추후 확인 필요 항목으로 표시)
-        if published_dt and published_dt < cutoff:
+        # 날짜를 못 찾으면 진짜 공지가 아닐 가능성이 높아 제외
+        if not published_dt:
+            continue
+        if published_dt < cutoff:
             continue
 
         items.append({
