@@ -1,10 +1,7 @@
 name: Daily Education News Digest
 
 on:
-  schedule:
-    # 매일 01:00 UTC = 한국시간(KST) 오전 10:00
-    - cron: '0 1 * * *'
-  workflow_dispatch: {}  # 수동 실행 버튼도 사용 가능
+  workflow_dispatch: {}  # 다이제스트 페이지의 "🔄 지금 새로고침" 버튼으로만 실행
 
 permissions:
   contents: write
