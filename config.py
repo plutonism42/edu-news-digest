@@ -57,12 +57,6 @@ BOARD_SOURCES = [
         "base_url": "https://www.keris.or.kr",
     },
     {
-        "name": "NIA 보도자료",
-        "category": "science",
-        "list_url": "https://www.nia.or.kr/site/nia_kor/ex/bbs/List.do?cbIdx=90549",
-        "base_url": "https://www.nia.or.kr",
-    },
-    {
         "name": "한국과학창의재단(KOSAC) 공지사항",
         "category": "science",
         "list_url": "https://www.kosac.re.kr/menus/270/boards/386/posts",

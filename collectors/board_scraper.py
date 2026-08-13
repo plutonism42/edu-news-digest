@@ -32,6 +32,21 @@ BLACKLIST_KEYWORDS = [
 ]
 
 
+# 제목 뒤에 흔히 따라붙는 부가정보 (이 단어가 나오면 그 이전까지만 제목으로 인정)
+JUNK_MARKERS = [
+    "첨부파일", "조회수", "작성자", "등록일", "작성부서", "담당부서",
+    "new", "New", "NEW", "hit", "Hit", "HIT", "조회", "다운로드",
+]
+
+
+def _clean_title(title: str) -> str:
+    t = title.strip()
+    cut_positions = [t.find(marker) for marker in JUNK_MARKERS if t.find(marker) > 0]
+    if cut_positions:
+        t = t[:min(cut_positions)].strip()
+    return t
+
+
 def _is_menu_link(title: str) -> bool:
     t = title.strip()
     if len(t) < 6:  # 너무 짧은 제목은 대부분 메뉴 이름
@@ -80,6 +95,7 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
             continue
 
         title = a_tag.get_text(strip=True)
+        title = _clean_title(title)
         if not title or _is_menu_link(title):
             continue
 
