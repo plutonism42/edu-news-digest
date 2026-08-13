@@ -63,6 +63,16 @@ BASE_STYLE = """
   .archive-list li { padding: 10px 0; border-bottom: 1px solid #e5e5e0; }
   .archive-list a { color: #1a1a1a; text-decoration: none; font-weight: 600; }
   .archive-list .count { color: #999; font-size: 13px; margin-left: 8px; }
+  .refresh-wrap { margin: 16px 0 24px; }
+  .refresh-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 700;
+    text-decoration: none; background: #2563eb; color: #fff; border: none; cursor: pointer;
+  }
+  .refresh-btn.disabled {
+    background: #eee; color: #999; cursor: not-allowed; pointer-events: none;
+  }
+  .refresh-note { font-size: 12px; color: #999; margin-top: 6px; }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -87,6 +97,41 @@ ITEM_TEMPLATE = """<div class="item">
 """
 
 VISIBLE_COUNT_PER_CATEGORY = 8
+
+# 플루토쌤 저장소의 Actions 워크플로 페이지 (버튼이 여기로 연결됨)
+GITHUB_ACTIONS_URL = "https://github.com/plutonism42/edu-news-digest/actions/workflows/daily.yml"
+
+
+def _refresh_button_html(last_updated_date_str: str) -> str:
+    """
+    오늘 이미 업데이트했으면 버튼을 자동으로 비활성화(회색)하고,
+    아니면 GitHub Actions 실행 화면으로 연결되는 버튼을 만듭니다.
+    (보안상 버튼 클릭만으로 바로 실행은 안 되고, GitHub 로그인 상태에서
+     "Run workflow" 버튼을 한 번 더 눌러야 실제 실행됩니다.)
+    """
+    return f"""
+<div class="refresh-wrap">
+  <a id="refresh-btn" class="refresh-btn" href="{GITHUB_ACTIONS_URL}" target="_blank" rel="noopener">🔄 지금 새로고침</a>
+  <div class="refresh-note" id="refresh-note"></div>
+</div>
+<script>
+(function() {{
+  var lastUpdated = "{last_updated_date_str}";
+  var fmt = new Intl.DateTimeFormat('en-CA', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }});
+  var todayKST = fmt.format(new Date()); // YYYY-MM-DD
+  var btn = document.getElementById('refresh-btn');
+  var note = document.getElementById('refresh-note');
+  if (lastUpdated === todayKST) {{
+    btn.classList.add('disabled');
+    btn.textContent = '✅ 오늘은 이미 업데이트했어요';
+    btn.removeAttribute('href');
+    note.textContent = '내일 다시 새로고침할 수 있어요.';
+  }} else {{
+    note.textContent = 'GitHub 로그인 후 "Run workflow" 버튼을 한 번 더 눌러야 실제로 실행돼요.';
+  }}
+}})();
+</script>
+"""
 
 
 def _fmt_published(published_iso: str) -> str:
@@ -147,18 +192,20 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     updated_str = datetime.now(KST).strftime("%Y년 %m월 %d일 %H:%M")
 
-    by_cat = {k: _sort_items([it for it in items if it.get("category") == k]) for k in CATEGORY_LABELS}
+    by = {k: _sort_items([it for it in items if it.get("category") == k]) for k in CATEGORY_LABELS}
 
     # ── index.html (요약: 카테고리당 상위 N개만) ──
     tabs = _tabs_html(active_key=None, category_hrefs=CATEGORY_PAGE_FILE)
+    refresh_btn = _refresh_button_html(date_str)
     sections = "".join(
-        _render_category_block(k, label, by_cat[k], cap=VISIBLE_COUNT_PER_CATEGORY)
+        _render_category_block(k, label, by[k], cap=VISIBLE_COUNT_PER_CATEGORY)
         for k, label in CATEGORY_LABELS.items()
     )
     body = f"""
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
 {tabs}
+{refresh_btn}
 <div><a class="archivelink" href="archive/index.html">📂 지난 기록 전체 보기 →</a></div>
 <br>
 {sections}
@@ -170,7 +217,7 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
     # ── 카테고리별 전체 페이지 (더보기 없이 전부 표시) ──
     for cat_key, label in CATEGORY_LABELS.items():
         tabs = _tabs_html(active_key=cat_key, category_hrefs=CATEGORY_PAGE_FILE)
-        section = _render_category_block(cat_key, label, by_cat[cat_key], cap=0)
+        section = _render_category_block(cat_key, label, by[cat_key], cap=0)
         body = f"""
 <a class="backlink" href="index.html">← 오늘의 다이제스트로</a>
 <h1>{label} 전체 목록</h1>

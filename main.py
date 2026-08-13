@@ -54,6 +54,9 @@ def main():
     all_days = archive_store.load_all_days()
     generate_archive_pages(all_days, "output/archive")
 
+    # 4) 엑셀/구글시트에서 열어볼 수 있는 누적 CSV도 저장
+    archive_store.save_cumulative_csv(all_days)
+
     print("=== 완료 ===")
 
 

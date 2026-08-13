@@ -38,3 +38,28 @@ def load_all_days() -> list:
 
     result.sort(key=lambda x: x[0])
     return result
+
+
+def save_cumulative_csv(all_days: list, csv_path: str = os.path.join(DATA_DIR, "전체기록.csv")):
+    """
+    엑셀/구글시트에서 바로 열 수 있는 누적 CSV 생성.
+    구글시트에서 열려면: 새 스프레드시트 만들기 -> 파일 -> 가져오기 -> 이 csv 업로드
+    """
+    import csv
+
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["날짜", "카테고리", "출처", "제목", "요약", "링크"])
+        for date_str, items in all_days:
+            for it in items:
+                writer.writerow([
+                    date_str,
+                    it.get("category", ""),
+                    it.get("source", ""),
+                    it.get("title", ""),
+                    it.get("summary", ""),
+                    it.get("link", ""),
+                ])
+
+    print(f"[저장] {csv_path} (누적 {sum(len(items) for _, items in all_days)}건)")
