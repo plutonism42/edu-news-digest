@@ -73,6 +73,15 @@ BASE_STYLE = """
     background: #eee; color: #999; cursor: not-allowed; pointer-events: none;
   }
   .refresh-note { font-size: 12px; color: #999; margin-top: 6px; }
+  .clock-box {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fff; border: 1px solid #eee; border-radius: 12px;
+    padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #555;
+  }
+  .clock-box .now { font-size: 20px; font-weight: 700; color: #1a1a1a; font-variant-numeric: tabular-nums; }
+  .clock-box .date { font-size: 13px; color: #888; margin-top: 2px; }
+  .clock-box .elapsed { text-align: right; }
+  .clock-box .elapsed b { color: #2563eb; }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -100,6 +109,50 @@ VISIBLE_COUNT_PER_CATEGORY = 8
 
 # 플루토쌤 저장소의 Actions 워크플로 페이지 (버튼이 여기로 연결됨)
 GITHUB_ACTIONS_URL = "https://github.com/plutonism42/edu-news-digest/actions/workflows/daily.yml"
+
+
+def _clock_widget_html(last_updated_iso: str) -> str:
+    """실시간 시계(한국시간) + '마지막 업데이트로부터 N시간 전' 표시"""
+    return f"""
+<div class="clock-box">
+  <div>
+    <div class="now" id="clock-now">--:--:--</div>
+    <div class="date" id="clock-date">-</div>
+  </div>
+  <div class="elapsed" id="clock-elapsed"></div>
+</div>
+<script>
+(function() {{
+  var lastUpdated = new Date("{last_updated_iso}");
+  var nowEl = document.getElementById('clock-now');
+  var dateEl = document.getElementById('clock-date');
+  var elapsedEl = document.getElementById('clock-elapsed');
+  var dateFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }});
+  var timeFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }});
+
+  function tick() {{
+    var now = new Date();
+    nowEl.textContent = timeFmt.format(now);
+    dateEl.textContent = dateFmt.format(now);
+
+    var diffMs = now - lastUpdated;
+    var diffH = Math.floor(diffMs / 3600000);
+    var diffMForRemainder = Math.floor((diffMs % 3600000) / 60000);
+    var text;
+    if (diffH < 1) {{
+      text = diffMForRemainder + '분 전 업데이트';
+    }} else if (diffH < 24) {{
+      text = diffH + '시간 ' + diffMForRemainder + '분 전 업데이트';
+    }} else {{
+      text = Math.floor(diffH / 24) + '일 전 업데이트';
+    }}
+    elapsedEl.innerHTML = '<b>' + text + '</b>';
+  }}
+  tick();
+  setInterval(tick, 1000);
+}})();
+</script>
+"""
 
 
 def _refresh_button_html(last_updated_date_str: str) -> str:
@@ -190,12 +243,15 @@ def _tabs_html(active_key: str, category_hrefs: dict) -> str:
 def generate_today_pages(items: list, date_str: str, output_dir: str):
     """오늘자 index.html + 카테고리별 전체 페이지(education/science/policy.html) 생성"""
     os.makedirs(output_dir, exist_ok=True)
-    updated_str = datetime.now(KST).strftime("%Y년 %m월 %d일 %H:%M")
+    now_kst = datetime.now(KST)
+    updated_str = now_kst.strftime("%Y년 %m월 %d일 %H:%M")
+    updated_iso = now_kst.isoformat()
 
     by = {k: _sort_items([it for it in items if it.get("category") == k]) for k in CATEGORY_LABELS}
 
     # ── index.html (요약: 카테고리당 상위 N개만) ──
     tabs = _tabs_html(active_key=None, category_hrefs=CATEGORY_PAGE_FILE)
+    clock = _clock_widget_html(updated_iso)
     refresh_btn = _refresh_button_html(date_str)
     sections = "".join(
         _render_category_block(k, label, by[k], cap=VISIBLE_COUNT_PER_CATEGORY)
@@ -204,6 +260,7 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
     body = f"""
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
+{clock}
 {tabs}
 {refresh_btn}
 <div><a class="archivelink" href="archive/index.html">📂 지난 기록 전체 보기 →</a></div>
