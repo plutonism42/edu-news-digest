@@ -6,8 +6,10 @@ data/YYYY-MM-DD.json 형태로 저장되며, 이 파일들은 GitHub 저장소�
 """
 import os
 import json
+from datetime import datetime
 
 DATA_DIR = "data"
+LAST_RUN_FILE = os.path.join(DATA_DIR, ".last_run.json")
 
 
 def save_day(items: list, date_str: str):
@@ -63,3 +65,27 @@ def save_cumulative_csv(all_days: list, csv_path: str = os.path.join(DATA_DIR, "
                 ])
 
     print(f"[저장] {csv_path} (누적 {sum(len(items) for _, items in all_days)}건)")
+
+
+def get_last_run_time():
+    """
+    지난번 실행 완료 시각(datetime, timezone-aware)을 반환.
+    기록이 없으면(첫 실행) None을 반환.
+    """
+    if not os.path.exists(LAST_RUN_FILE):
+        return None
+    try:
+        with open(LAST_RUN_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return datetime.fromisoformat(data["last_run"])
+    except Exception as e:
+        print(f"[마지막 실행 시각 로드 오류] {e}")
+        return None
+
+
+def set_last_run_time(dt):
+    """이번 실행 완료 시각을 저장 (다음 실행 때 이 시각부터 계산됨)"""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(LAST_RUN_FILE, "w", encoding="utf-8") as f:
+        json.dump({"last_run": dt.isoformat()}, f)
+    print(f"[저장] 마지막 실행 시각 = {dt.isoformat()}")

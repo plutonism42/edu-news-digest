@@ -39,11 +39,17 @@ JUNK_MARKERS = [
 ]
 
 
+MAX_TITLE_LENGTH = 60
+
+
 def _clean_title(title: str) -> str:
     t = title.strip()
     cut_positions = [t.find(marker) for marker in JUNK_MARKERS if t.find(marker) > 0]
     if cut_positions:
         t = t[:min(cut_positions)].strip()
+    # 본문 전체가 딸려온 경우 대비 - 헤드라인 길이로 강제 절삭
+    if len(t) > MAX_TITLE_LENGTH:
+        t = t[:MAX_TITLE_LENGTH].rstrip() + "…"
     return t
 
 

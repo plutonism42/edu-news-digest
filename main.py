@@ -31,10 +31,24 @@ def dedupe(items: list) -> list:
 def main():
     print("=== 교육·과학·정책 데일리 다이제스트 수집 시작 ===")
 
+    now_kst = datetime.now(KST)
+    last_run = archive_store.get_last_run_time()
+
+    if last_run is None:
+        # 첫 실행: config.py 기본값(24시간) 사용
+        window_hours = COLLECTION_WINDOW_HOURS
+        print(f"[수집 범위] 첫 실행 - 기본값 {window_hours}시간 사용")
+    else:
+        elapsed_hours = (now_kst - last_run).total_seconds() / 3600
+        # 여유분 1시간 추가(시각 오차 방지), 최소 1시간~최대 14일로 제한
+        window_hours = max(1.0, min(elapsed_hours + 1, 24 * 14))
+        print(f"[수집 범위] 지난 실행({last_run.strftime('%Y-%m-%d %H:%M')}) 이후 "
+              f"약 {elapsed_hours:.1f}시간 경과 -> {window_hours:.1f}시간 범위로 수집")
+
     all_items = []
-    all_items += collect_all_rss(RSS_SOURCES, COLLECTION_WINDOW_HOURS)
-    all_items += scrape_all_boards(BOARD_SOURCES, COLLECTION_WINDOW_HOURS)
-    all_items += collect_all_naver(NAVER_KEYWORDS, COLLECTION_WINDOW_HOURS)
+    all_items += collect_all_rss(RSS_SOURCES, window_hours)
+    all_items += scrape_all_boards(BOARD_SOURCES, window_hours)
+    all_items += collect_all_naver(NAVER_KEYWORDS, window_hours)
 
     print(f"\n[중복 제거 전] 총 {len(all_items)}건")
     all_items = dedupe(all_items)
@@ -42,7 +56,7 @@ def main():
 
     all_items = summarize_items(all_items)
 
-    today_str = datetime.now(KST).strftime("%Y-%m-%d")
+    today_str = now_kst.strftime("%Y-%m-%d")
 
     # 1) 오늘자 데이터를 영구 저장 (data/YYYY-MM-DD.json, 이후 git에 커밋됨)
     archive_store.save_day(all_items, today_str)
@@ -56,6 +70,9 @@ def main():
 
     # 4) 엑셀/구글시트에서 열어볼 수 있는 누적 CSV도 저장
     archive_store.save_cumulative_csv(all_days)
+
+    # 5) 이번 실행 시각 기록 (다음 실행 때 이 시각부터 계산됨)
+    archive_store.set_last_run_time(now_kst)
 
     print("=== 완료 ===")
 

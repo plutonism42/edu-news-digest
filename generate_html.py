@@ -15,11 +15,11 @@ from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
-CATEGORY_LABELS = {
-    "education": "📘 교육",
-    "science": "🔬 과학",
-    "policy": "🏛 정책",
-}
+CATEGORY_ORDER = ["education", "policy", "science"]
+CATEGORY_TEXT = {"education": "교육분야", "policy": "국가정책", "science": "과학교육"}
+CATEGORY_EMOJI = {"education": "📘", "policy": "🏛", "science": "🔬"}
+CATEGORY_COLOR = {"education": "#2563eb", "policy": "#7c3aed", "science": "#059669"}
+CATEGORY_LABELS = {k: f"{CATEGORY_EMOJI[k]} {CATEGORY_TEXT[k]}" for k in CATEGORY_ORDER}
 
 CATEGORY_PAGE_FILE = {
     "education": "education.html",
@@ -82,6 +82,20 @@ BASE_STYLE = """
   .clock-box .date { font-size: 13px; color: #888; margin-top: 2px; }
   .clock-box .elapsed { text-align: right; }
   .clock-box .elapsed b { color: #2563eb; }
+  .landing-grid { display: flex; flex-direction: column; gap: 14px; margin: 20px 0; }
+  .landing-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 22px 20px; border-radius: 18px; text-decoration: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent) 60%, #00000000);
+    color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    transition: transform 0.15s ease;
+  }
+  .landing-card:active { transform: scale(0.98); }
+  .landing-emoji { font-size: 34px; }
+  .landing-text { flex: 1; }
+  .landing-label { font-size: 19px; font-weight: 800; }
+  .landing-count { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+  .landing-arrow { font-size: 22px; opacity: 0.85; }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -232,6 +246,22 @@ def _render_category_block(cat_key: str, label: str, cat_items: list, cap: int) 
     return html
 
 
+def _landing_buttons_html(by: dict) -> str:
+    cards = []
+    for cat_key in CATEGORY_ORDER:
+        count = len(by[cat_key])
+        cards.append(f"""
+<a class="landing-card" href="{CATEGORY_PAGE_FILE[cat_key]}" style="--accent: {CATEGORY_COLOR[cat_key]}">
+  <div class="landing-emoji">{CATEGORY_EMOJI[cat_key]}</div>
+  <div class="landing-text">
+    <div class="landing-label">{CATEGORY_TEXT[cat_key]}</div>
+    <div class="landing-count">{count}건 새 소식</div>
+  </div>
+  <div class="landing-arrow">→</div>
+</a>""")
+    return '<div class="landing-grid">' + "".join(cards) + "</div>"
+
+
 def _tabs_html(active_key: str, category_hrefs: dict) -> str:
     parts = []
     for cat_key, label in CATEGORY_LABELS.items():
@@ -249,23 +279,17 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
 
     by = {k: _sort_items([it for it in items if it.get("category") == k]) for k in CATEGORY_LABELS}
 
-    # ── index.html (요약: 카테고리당 상위 N개만) ──
-    tabs = _tabs_html(active_key=None, category_hrefs=CATEGORY_PAGE_FILE)
+    # ── index.html (랜딩: 큰 버튼 3개만, 목록 없음) ──
     clock = _clock_widget_html(updated_iso)
     refresh_btn = _refresh_button_html(date_str)
-    sections = "".join(
-        _render_category_block(k, label, by[k], cap=VISIBLE_COUNT_PER_CATEGORY)
-        for k, label in CATEGORY_LABELS.items()
-    )
+    landing = _landing_buttons_html(by)
     body = f"""
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
 {clock}
-{tabs}
+{landing}
 {refresh_btn}
 <div><a class="archivelink" href="archive/index.html">📂 지난 기록 전체 보기 →</a></div>
-<br>
-{sections}
 """
     html = PAGE_SHELL.format(title="교육·과학·정책 데일리 다이제스트", style=BASE_STYLE, body=body)
     with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
