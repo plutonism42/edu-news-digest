@@ -29,6 +29,8 @@ def load_all_days() -> list:
     for filename in sorted(os.listdir(DATA_DIR)):
         if not filename.endswith(".json"):
             continue
+        if filename.startswith("."):  # .last_run.json 같은 특수 파일 제외
+            continue
         date_str = filename[:-5]
         path = os.path.join(DATA_DIR, filename)
         try:
