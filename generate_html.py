@@ -96,6 +96,10 @@ BASE_STYLE = """
   .landing-label { font-size: 19px; font-weight: 800; }
   .landing-count { font-size: 13px; opacity: 0.9; margin-top: 2px; }
   .landing-arrow { font-size: 22px; opacity: 0.85; }
+  .related-badge {
+    display: inline-block; font-size: 11px; color: #7c3aed; background: #f3e8ff;
+    padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700;
+  }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -218,6 +222,14 @@ def _sort_items(items: list) -> list:
     return items
 
 
+def _related_badge_html(it: dict) -> str:
+    related = it.get("related_categories") or []
+    if not related:
+        return ""
+    names = [CATEGORY_TEXT.get(c, c) for c in related]
+    return f'<span class="related-badge">🔗 {", ".join(names)}에도 관련</span>'
+
+
 def _render_items(items: list) -> str:
     return "\n".join(
         ITEM_TEMPLATE.format(
@@ -225,7 +237,11 @@ def _render_items(items: list) -> str:
             title=it["title"],
             source=it["source"],
             published=_fmt_published(it.get("published")),
-            summary_html=f'<div class="summary">{it["summary"]}</div>' if it.get("summary") else "",
+            summary_html=(
+                f'<div class="summary">{it["summary"]}{_related_badge_html(it)}</div>'
+                if it.get("summary")
+                else (f'<div class="summary">{_related_badge_html(it)}</div>' if it.get("related_categories") else "")
+            ),
         )
         for it in items
     )

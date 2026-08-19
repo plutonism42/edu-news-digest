@@ -16,15 +16,37 @@ import archive_store
 KST = timezone(timedelta(hours=9))
 
 
-def dedupe(items: list) -> list:
-    seen = set()
-    result = []
+# 겹치는 기사의 우선순위 (앞에 있을수록 우선순위 높음)
+CATEGORY_PRIORITY = ["science", "education", "policy"]
+
+
+def dedupe_and_prioritize(items: list, priority_order: list) -> list:
+    """
+    같은 제목의 기사가 여러 카테고리 소스에서 동시에 잡히면:
+    - priority_order 기준으로 가장 우선순위 높은 카테고리 하나에만 배정
+    - 나머지 겹치는 카테고리는 'related_categories'에 기록 (화면에 작은 배지로 표시됨)
+    """
+    groups = {}
+    order = []  # 최초 등장 순서 보존
     for it in items:
         key = it["title"].strip()
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(it)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(it)
+
+    result = []
+    for key in order:
+        group = groups[key]
+        categories_present = set(it["category"] for it in group)
+        primary = next((c for c in priority_order if c in categories_present), group[0]["category"])
+        related = sorted(categories_present - {primary})
+
+        base = dict(group[0])
+        base["category"] = primary
+        base["related_categories"] = related
+        result.append(base)
+
     return result
 
 
@@ -51,7 +73,7 @@ def main():
     all_items += collect_all_naver(NAVER_KEYWORDS, window_hours)
 
     print(f"\n[중복 제거 전] 총 {len(all_items)}건")
-    all_items = dedupe(all_items)
+    all_items = dedupe_and_prioritize(all_items, CATEGORY_PRIORITY)
     print(f"[중복 제거 후] 총 {len(all_items)}건")
 
     all_items = summarize_items(all_items)

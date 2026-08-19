@@ -88,7 +88,7 @@ BOARD_SOURCES = [
     },
     {
         "name": "전교조 보도자료",
-        "category": "policy",
+        "category": "education",
         "list_url": "https://www.eduhope.net/bbs/board.php?bo_table=maybbs_eduhope_4&menu_id=2010",
         "base_url": "https://www.eduhope.net",
     },
@@ -116,35 +116,29 @@ BOARD_SOURCES = [
         "list_url": "https://edpolicy.kedi.re.kr/edpolicy/webzine/list1",
         "base_url": "https://edpolicy.kedi.re.kr",
     },
-    # 정책브리핑 보도자료 - 학교/교사/교육 키워드 검색 (전 부처 대상)
-    {
-        "name": "정책브리핑 검색('학교')",
-        "category": "policy",
-        "list_url": "https://www.korea.kr/briefing/pressReleaseList.do?srchWord=%ED%95%99%EA%B5%90",
-        "base_url": "https://www.korea.kr",
-    },
-    {
-        "name": "정책브리핑 검색('교사')",
-        "category": "policy",
-        "list_url": "https://www.korea.kr/briefing/pressReleaseList.do?srchWord=%EA%B5%90%EC%82%AC",
-        "base_url": "https://www.korea.kr",
-    },
-    {
-        "name": "정책브리핑 검색('교육')",
-        "category": "policy",
-        "list_url": "https://www.korea.kr/briefing/pressReleaseList.do?srchWord=%EA%B5%90%EC%9C%A1",
-        "base_url": "https://www.korea.kr",
-    },
 ]
 
+# ── 정책브리핑 보도자료 - 카테고리별 키워드 검색 (전 부처 대상) ──
+# 플루토쌤이 정한 카테고리별 키워드 세트 (2026-08-18)
+from urllib.parse import quote as _quote
+
+POLICY_BRIEFING_KEYWORDS = {
+    "education": ["학교", "교육", "교사", "교과서", "민원", "교권", "디지털", "수능", "AI교육"],
+    "policy": ["학교", "교육", "교사", "교과서", "AI교육"],
+    "science": ["학교", "교육", "교사", "교과서", "AI", "과학실", "연구회", "공모", "연구", "지능형", "디지털", "STEAM"],
+}
+
+for _cat, _words in POLICY_BRIEFING_KEYWORDS.items():
+    for _w in _words:
+        BOARD_SOURCES.append({
+            "name": f"정책브리핑 검색('{_w}' - {_cat})",
+            "category": _cat,
+            "list_url": f"https://www.korea.kr/briefing/pressReleaseList.do?srchWord={_quote(_w)}",
+            "base_url": "https://www.korea.kr",
+        })
+
 # ── 네이버 뉴스 검색 키워드 (현재 비활성 - 키 미설정 시 자동 건너뜀) ──
-NAVER_KEYWORDS = [
-    ("AI 교육", "education"),
-    ("디지털교과서", "education"),
-    ("2028 수능", "education"),
-    ("교육부 정책", "policy"),
-    ("과학기술정보통신부", "science"),
-]
+NAVER_KEYWORDS = [(w, cat) for cat, words in POLICY_BRIEFING_KEYWORDS.items() for w in words]
 
 # 수집 시간 기준 (직전 24시간)
 COLLECTION_WINDOW_HOURS = 24
