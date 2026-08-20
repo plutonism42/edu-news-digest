@@ -20,7 +20,7 @@ def _strip_tags(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text or "").replace("&quot;", '"').strip()
 
 
-def collect_naver_news(keyword: str, category: str, window_hours: int, display: int = 20) -> list:
+def collect_naver_news(keyword: str, category: str, window_start: datetime, window_end: datetime, display: int = 20) -> list:
     client_id = os.environ.get("NAVER_CLIENT_ID")
     client_secret = os.environ.get("NAVER_CLIENT_SECRET")
 
@@ -49,7 +49,6 @@ def collect_naver_news(keyword: str, category: str, window_hours: int, display: 
         print(f"[네이버 API 오류] '{keyword}': {e}")
         return []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
     items = []
     for entry in data.get("items", []):
         try:
@@ -59,7 +58,7 @@ def collect_naver_news(keyword: str, category: str, window_hours: int, display: 
         except Exception:
             pub_dt = None
 
-        if pub_dt and pub_dt < cutoff:
+        if pub_dt and (pub_dt < window_start or pub_dt > window_end):
             continue
 
         items.append({
@@ -73,10 +72,10 @@ def collect_naver_news(keyword: str, category: str, window_hours: int, display: 
     return items
 
 
-def collect_all_naver(keywords: list, window_hours: int) -> list:
+def collect_all_naver(keywords: list, window_start: datetime, window_end: datetime) -> list:
     all_items = []
     for keyword, category in keywords:
-        found = collect_naver_news(keyword, category, window_hours)
+        found = collect_naver_news(keyword, category, window_start, window_end)
         print(f"[네이버] '{keyword}': {len(found)}건 수집")
         all_items.extend(found)
     return all_items

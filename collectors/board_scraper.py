@@ -88,13 +88,12 @@ def _fetch_with_retry(url: str, attempts: int = 2, timeout: int = 20):
     raise last_err
 
 
-def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -> list:
+def scrape_board_generic(source: dict, window_start: datetime, window_end: datetime, max_items: int = 15) -> list:
     """
     source: {"name", "category", "list_url", "base_url"}
     게시판 목록 페이지에서 제목+링크+(있으면)날짜를 긁어옵니다.
     """
     items = []
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
     try:
         resp = _fetch_with_retry(source["list_url"])
@@ -130,7 +129,7 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
         # 날짜를 못 찾으면 진짜 공지가 아닐 가능성이 높아 제외
         if not published_dt:
             continue
-        if published_dt < cutoff:
+        if published_dt < window_start or published_dt > window_end:
             continue
 
         items.append({
@@ -147,10 +146,10 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
     return items
 
 
-def scrape_all_boards(board_sources: list, window_hours: int) -> list:
+def scrape_all_boards(board_sources: list, window_start: datetime, window_end: datetime) -> list:
     all_items = []
     for src in board_sources:
-        found = scrape_board_generic(src, window_hours)
+        found = scrape_board_generic(src, window_start, window_end)
         print(f"[크롤링] {src['name']}: {len(found)}건 수집 (휴리스틱 - 검증 필요)")
         all_items.extend(found)
     return all_items

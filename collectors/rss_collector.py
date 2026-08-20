@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-"""RSS 피드에서 최근 N시간 이내 게시물을 수집합니다."""
+"""RSS 피드에서 지정된 시간 구간(window_start ~ window_end) 이내 게시물을 수집합니다."""
 import feedparser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from time import mktime
 
 
-def collect_rss(source: dict, window_hours: int) -> list:
+def collect_rss(source: dict, window_start: datetime, window_end: datetime) -> list:
     """
     source: {"name", "category", "url"}
     반환: [{"title", "link", "source", "category", "published"}]
     """
     items = []
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
     try:
         feed = feedparser.parse(source["url"])
@@ -28,8 +27,8 @@ def collect_rss(source: dict, window_hours: int) -> list:
                 )
                 break
 
-        # 날짜 정보가 없으면 일단 포함(안전하게), 있으면 24시간 필터 적용
-        if published_dt and published_dt < cutoff:
+        # 날짜 정보가 없으면 일단 포함(안전하게), 있으면 구간(시작~끝) 필터 적용
+        if published_dt and (published_dt < window_start or published_dt > window_end):
             continue
 
         items.append({
@@ -43,10 +42,10 @@ def collect_rss(source: dict, window_hours: int) -> list:
     return items
 
 
-def collect_all_rss(rss_sources: list, window_hours: int) -> list:
+def collect_all_rss(rss_sources: list, window_start: datetime, window_end: datetime) -> list:
     all_items = []
     for src in rss_sources:
-        found = collect_rss(src, window_hours)
+        found = collect_rss(src, window_start, window_end)
         print(f"[RSS] {src['name']}: {len(found)}건 수집")
         all_items.extend(found)
     return all_items

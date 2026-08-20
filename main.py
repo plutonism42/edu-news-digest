@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """매일 실행되는 메인 파이프라인: 수집 -> 요약 -> 저장 -> HTML 생성(오늘자+아카이브)"""
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from config import (
     RSS_SOURCES, BOARD_SOURCES, NAVER_KEYWORDS,
@@ -14,6 +15,7 @@ from generate_html import generate_today_pages, generate_archive_pages
 import archive_store
 
 KST = timezone(timedelta(hours=9))
+COLLECTION_ANCHOR_HOUR = 10  # 매일 오전 10시 기준
 
 
 # 겹치는 기사의 우선순위 (앞에 있을수록 우선순위 높음)
@@ -54,31 +56,39 @@ def main():
     print("=== 교육·과학·정책 데일리 다이제스트 수집 시작 ===")
 
     now_kst = datetime.now(KST)
-    last_run = archive_store.get_last_run_time()
 
-    if last_run is None:
-        # 첫 실행: config.py 기본값(24시간) 사용
-        window_hours = COLLECTION_WINDOW_HOURS
-        print(f"[수집 범위] 첫 실행 - 기본값 {window_hours}시간 사용")
-    else:
-        elapsed_hours = (now_kst - last_run).total_seconds() / 3600
-        # 여유분 1시간 추가(시각 오차 방지), 최소 1시간~최대 14일로 제한
-        window_hours = max(1.0, min(elapsed_hours + 1, 24 * 14))
-        print(f"[수집 범위] 지난 실행({last_run.strftime('%Y-%m-%d %H:%M')}) 이후 "
-              f"약 {elapsed_hours:.1f}시간 경과 -> {window_hours:.1f}시간 범위로 수집")
+    # 매일 오전 10시(KST)를 기준선으로 고정. 언제 실행하든(오전이든 오후든,
+    # 하루에 여러 번이든) 항상 "전날 10시 ~ 가장 최근 10시" 구간을 본다.
+    # -> 같은 날 여러 번 실행해도 결과가 항상 동일함(멱등성)
+    anchor_today = now_kst.replace(hour=COLLECTION_ANCHOR_HOUR, minute=0, second=0, microsecond=0)
+    window_end = anchor_today if now_kst >= anchor_today else anchor_today - timedelta(days=1)
+    window_start = window_end - timedelta(days=1)
+
+    print(f"[수집 범위] {window_start.strftime('%Y-%m-%d %H:%M')} ~ "
+          f"{window_end.strftime('%Y-%m-%d %H:%M')} (고정 24시간)")
 
     all_items = []
-    all_items += collect_all_rss(RSS_SOURCES, window_hours)
-    all_items += scrape_all_boards(BOARD_SOURCES, window_hours)
-    all_items += collect_all_naver(NAVER_KEYWORDS, window_hours)
+    all_items += collect_all_rss(RSS_SOURCES, window_start, window_end)
+    all_items += scrape_all_boards(BOARD_SOURCES, window_start, window_end)
+    all_items += collect_all_naver(NAVER_KEYWORDS, window_start, window_end)
 
     print(f"\n[중복 제거 전] 총 {len(all_items)}건")
     all_items = dedupe_and_prioritize(all_items, CATEGORY_PRIORITY)
     print(f"[중복 제거 후] 총 {len(all_items)}건")
 
+    # ── 안전장치: 0건이면 "오늘 진짜 소식이 없는 날"이 아니라
+    # 네트워크 차단 등으로 전면 수집 실패했을 가능성이 훨씬 높음.
+    # 이 경우 기존 데이터/페이지를 절대 덮어쓰지 않고 실패로 종료한다.
+    # (last_run_time도 갱신 안 해서, 다음 성공 실행 때 놓친 구간을 자동으로 다시 수집함)
+    if len(all_items) == 0:
+        print("\n[경고] 수집된 항목이 0건입니다. 네트워크 차단/타임아웃으로 인한 "
+              "전면 실패로 판단하여 기존 데이터를 보존하고 실패로 종료합니다.")
+        print("       (Actions 화면에 실패로 표시되며, 이후 단계는 건너뜁니다.)")
+        sys.exit(1)
+
     all_items = summarize_items(all_items)
 
-    today_str = now_kst.strftime("%Y-%m-%d")
+    today_str = window_end.strftime("%Y-%m-%d")
 
     # 1) 오늘자 데이터를 영구 저장 (data/YYYY-MM-DD.json, 이후 git에 커밋됨)
     archive_store.save_day(all_items, today_str)
@@ -92,9 +102,6 @@ def main():
 
     # 4) 엑셀/구글시트에서 열어볼 수 있는 누적 CSV도 저장
     archive_store.save_cumulative_csv(all_days)
-
-    # 5) 이번 실행 시각 기록 (다음 실행 때 이 시각부터 계산됨)
-    archive_store.set_last_run_time(now_kst)
 
     print("=== 완료 ===")
 
