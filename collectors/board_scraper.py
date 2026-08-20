@@ -6,6 +6,7 @@ RSS가 없는 기관 게시판을 크롤링합니다.
 SITE_SPECIFIC 안에 개별 파서를 추가해서 덮어씁니다.
 """
 import re
+import time
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
@@ -73,6 +74,20 @@ def _find_date_in_text(text: str):
     return None
 
 
+def _fetch_with_retry(url: str, attempts: int = 2, timeout: int = 20):
+    last_err = None
+    for i in range(attempts):
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=timeout)
+            resp.raise_for_status()
+            return resp
+        except Exception as e:
+            last_err = e
+            if i < attempts - 1:
+                time.sleep(3)  # 잠깐 쉬었다가 재시도 (일시적 차단/혼잡 대비)
+    raise last_err
+
+
 def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -> list:
     """
     source: {"name", "category", "list_url", "base_url"}
@@ -82,8 +97,7 @@ def scrape_board_generic(source: dict, window_hours: int, max_items: int = 15) -
     cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
     try:
-        resp = requests.get(source["list_url"], headers=HEADERS, timeout=15)
-        resp.raise_for_status()
+        resp = _fetch_with_retry(source["list_url"])
         resp.encoding = resp.apparent_encoding
     except Exception as e:
         print(f"[크롤링 오류] {source['name']}: {e}")

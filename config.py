@@ -118,27 +118,42 @@ BOARD_SOURCES = [
     },
 ]
 
-# ── 정책브리핑 보도자료 - 카테고리별 키워드 검색 (전 부처 대상) ──
-# 플루토쌤이 정한 카테고리별 키워드 세트 (2026-08-18)
+# ── 정책브리핑 보도자료 - 키워드 검색 (전 부처 대상) ──
+# 키워드 하나당 카테고리 하나만 지정 (중복 없음 -> 카테고리 쏠림 방지)
 from urllib.parse import quote as _quote
 
-POLICY_BRIEFING_KEYWORDS = {
-    "education": ["학교", "교육", "교사", "교과서", "민원", "교권", "디지털", "수능", "AI교육"],
-    "policy": ["학교", "교육", "교사", "교과서", "AI교육"],
-    "science": ["학교", "교육", "교사", "교과서", "AI", "과학실", "연구회", "공모", "연구", "지능형", "디지털", "STEAM"],
+KEYWORD_CATEGORY_MAP = {
+    # 교육분야: 학교 현장/교사 실무 일반
+    "학교": "education",
+    "교육": "education",
+    "교사": "education",
+    "교과서": "education",
+    "민원": "education",
+    "교권": "education",
+    "수능": "education",
+    # 국가정책: 정부 정책 발표 성격이 뚜렷한 키워드
+    "AI교육": "policy",
+    "디지털": "policy",
+    # 과학교육: 연구회/공모/참여활동 성격
+    "AI": "science",
+    "과학실": "science",
+    "연구회": "science",
+    "공모": "science",
+    "연구": "science",
+    "지능형": "science",
+    "STEAM": "science",
 }
 
-for _cat, _words in POLICY_BRIEFING_KEYWORDS.items():
-    for _w in _words:
-        BOARD_SOURCES.append({
-            "name": f"정책브리핑 검색('{_w}' - {_cat})",
-            "category": _cat,
-            "list_url": f"https://www.korea.kr/briefing/pressReleaseList.do?srchWord={_quote(_w)}",
-            "base_url": "https://www.korea.kr",
-        })
+for _w, _cat in KEYWORD_CATEGORY_MAP.items():
+    BOARD_SOURCES.append({
+        "name": f"정책브리핑 검색('{_w}')",
+        "category": _cat,
+        "list_url": f"https://www.korea.kr/briefing/pressReleaseList.do?srchWord={_quote(_w)}",
+        "base_url": "https://www.korea.kr",
+    })
 
 # ── 네이버 뉴스 검색 키워드 (현재 비활성 - 키 미설정 시 자동 건너뜀) ──
-NAVER_KEYWORDS = [(w, cat) for cat, words in POLICY_BRIEFING_KEYWORDS.items() for w in words]
+NAVER_KEYWORDS = [(w, cat) for w, cat in KEYWORD_CATEGORY_MAP.items()]
 
 # 수집 시간 기준 (직전 24시간)
 COLLECTION_WINDOW_HOURS = 24
