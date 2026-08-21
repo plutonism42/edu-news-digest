@@ -5,13 +5,13 @@ import sys
 from datetime import datetime, timezone, timedelta
 from config import (
     RSS_SOURCES, BOARD_SOURCES, NAVER_KEYWORDS,
-    COLLECTION_WINDOW_HOURS,
+    COLLECTION_WINDOW_HOURS, INSTITUTION_LINKS,
 )
 from collectors.rss_collector import collect_all_rss
 from collectors.board_scraper import scrape_all_boards
 from collectors.naver_news import collect_all_naver
 from summarize import summarize_items
-from generate_html import generate_today_pages, generate_archive_pages
+from generate_html import generate_today_pages, generate_archive_pages, generate_links_page
 import archive_store
 
 KST = timezone(timedelta(hours=9))
@@ -68,9 +68,11 @@ def main():
           f"{window_end.strftime('%Y-%m-%d %H:%M')} (고정 24시간)")
 
     all_items = []
-    all_items += collect_all_rss(RSS_SOURCES, window_start, window_end)
-    all_items += scrape_all_boards(BOARD_SOURCES, window_start, window_end)
-    all_items += collect_all_naver(NAVER_KEYWORDS, window_start, window_end)
+    rss_items, rss_failed = collect_all_rss(RSS_SOURCES, window_start, window_end)
+    board_items, board_failed = scrape_all_boards(BOARD_SOURCES, window_start, window_end)
+    naver_items = collect_all_naver(NAVER_KEYWORDS, window_start, window_end)
+    all_items = rss_items + board_items + naver_items
+    failed_sources = rss_failed + board_failed
 
     print(f"\n[중복 제거 전] 총 {len(all_items)}건")
     all_items = dedupe_and_prioritize(all_items, CATEGORY_PRIORITY)
@@ -95,6 +97,9 @@ def main():
 
     # 2) 오늘자 메인/카테고리 페이지 생성
     generate_today_pages(all_items, today_str, "output")
+
+    # 2-1) 관련 기관 홈페이지 링크 모음 페이지 생성
+    generate_links_page(INSTITUTION_LINKS, "output")
 
     # 3) 지금까지 쌓인 전체 데이터로 아카이브 페이지 재생성
     all_days = archive_store.load_all_days()

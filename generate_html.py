@@ -100,6 +100,20 @@ BASE_STYLE = """
     display: inline-block; font-size: 11px; color: #7c3aed; background: #f3e8ff;
     padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700;
   }
+  .links-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 22px 20px; border-radius: 18px; text-decoration: none;
+    background: #fff; border: 2px solid #e5e5e0; color: #333;
+  }
+  .links-emoji { font-size: 30px; }
+  .links-label { font-size: 17px; font-weight: 800; }
+  .links-sub { font-size: 12px; color: #999; margin-top: 2px; }
+  .inst-group { margin-bottom: 28px; }
+  .inst-group h2 { font-size: 16px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  .inst-list { list-style: none; padding: 0; margin: 8px 0 0; }
+  .inst-list li { padding: 12px 0; border-bottom: 1px solid #e5e5e0; }
+  .inst-list a { color: #1a1a1a; text-decoration: none; font-weight: 600; font-size: 15px; }
+  .inst-list a:hover { text-decoration: underline; }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -171,6 +185,46 @@ def _clock_widget_html(last_updated_iso: str) -> str:
 }})();
 </script>
 """
+
+
+def _links_button_html() -> str:
+    return """
+<a class="links-card" href="links.html">
+  <div class="links-emoji">🔗</div>
+  <div>
+    <div class="links-label">관련 기관 홈페이지</div>
+    <div class="links-sub">직접 방문해서 확인하기</div>
+  </div>
+</a>"""
+
+
+def generate_links_page(institution_links: list, output_dir: str):
+    """기관별 홈페이지 링크 모음 페이지 생성 (links.html)"""
+    os.makedirs(output_dir, exist_ok=True)
+
+    groups_html = []
+    for cat_key in CATEGORY_ORDER:
+        label = f"{CATEGORY_EMOJI[cat_key]} {CATEGORY_TEXT[cat_key]}"
+        insts = [i for i in institution_links if i["category"] == cat_key]
+        if not insts:
+            continue
+        rows = "\n".join(
+            f'<li><a href="{i["url"]}" target="_blank" rel="noopener">{i["name"]}</a></li>'
+            for i in insts
+        )
+        groups_html.append(f'<div class="inst-group"><h2>{label}</h2><ul class="inst-list">{rows}</ul></div>')
+
+    body = f"""
+<a class="backlink" href="index.html">← 오늘의 다이제스트로</a>
+<h1>🔗 관련 기관 홈페이지</h1>
+<div class="updated">궁금한 기관은 직접 방문해서 최신 소식을 확인해보세요.</div>
+{"".join(groups_html)}
+"""
+    html = PAGE_SHELL.format(title="관련 기관 홈페이지 - 데일리 다이제스트", style=BASE_STYLE, body=body)
+    with open(os.path.join(output_dir, "links.html"), "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"[완료] links.html 생성됨 ({len(institution_links)}개 기관)")
 
 
 def _refresh_button_html(last_updated_date_str: str) -> str:
@@ -299,11 +353,13 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
     clock = _clock_widget_html(updated_iso)
     refresh_btn = _refresh_button_html(date_str)
     landing = _landing_buttons_html(by)
+    links_btn = _links_button_html()
     body = f"""
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
 {clock}
 {landing}
+{links_btn}
 {refresh_btn}
 <div><a class="archivelink" href="archive/index.html">📂 지난 기록 전체 보기 →</a></div>
 """

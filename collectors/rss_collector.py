@@ -5,18 +5,21 @@ from datetime import datetime, timezone
 from time import mktime
 
 
-def collect_rss(source: dict, window_start: datetime, window_end: datetime) -> list:
+def collect_rss(source: dict, window_start: datetime, window_end: datetime):
     """
     source: {"name", "category", "url"}
-    반환: [{"title", "link", "source", "category", "published"}]
+    반환: (items, ok) - ok=False면 접속 자체가 실패한 것
     """
     items = []
 
     try:
         feed = feedparser.parse(source["url"])
+        if getattr(feed, "bozo", False) and not feed.entries:
+            # 파싱 자체가 실패하고 항목도 없으면 접속 문제로 간주
+            raise Exception(getattr(feed, "bozo_exception", "RSS 파싱 실패"))
     except Exception as e:
         print(f"[RSS 오류] {source['name']}: {e}")
-        return items
+        return items, False
 
     for entry in feed.entries:
         published_dt = None
@@ -39,13 +42,16 @@ def collect_rss(source: dict, window_start: datetime, window_end: datetime) -> l
             "published": published_dt.isoformat() if published_dt else None,
         })
 
-    return items
+    return items, True
 
 
-def collect_all_rss(rss_sources: list, window_start: datetime, window_end: datetime) -> list:
+def collect_all_rss(rss_sources: list, window_start: datetime, window_end: datetime):
     all_items = []
+    failed = []
     for src in rss_sources:
-        found = collect_rss(src, window_start, window_end)
-        print(f"[RSS] {src['name']}: {len(found)}건 수집")
+        found, ok = collect_rss(src, window_start, window_end)
+        print(f"[RSS] {src['name']}: {len(found)}건 수집" + ("" if ok else " (접속 실패)"))
         all_items.extend(found)
-    return all_items
+        if not ok:
+            failed.append({"name": src["name"], "url": src["url"], "category": src["category"]})
+    return all_items, failed

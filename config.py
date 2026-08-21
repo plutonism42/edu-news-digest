@@ -116,6 +116,12 @@ BOARD_SOURCES = [
         "list_url": "https://edpolicy.kedi.re.kr/edpolicy/webzine/list1",
         "base_url": "https://edpolicy.kedi.re.kr",
     },
+    {
+        "name": "에듀플러스뉴스",
+        "category": "education",
+        "list_url": "https://www.eduplusnews.com/news/articleList.html?sc_sub_section_code=S2N4&view_type=sm",
+        "base_url": "https://www.eduplusnews.com",
+    },
 ]
 
 # ── 정책브리핑 보도자료 - 키워드 검색 (전 부처 대상) ──
@@ -154,6 +160,27 @@ for _w, _cat in KEYWORD_CATEGORY_MAP.items():
 
 # ── 네이버 뉴스 검색 키워드 (현재 비활성 - 키 미설정 시 자동 건너뜀) ──
 NAVER_KEYWORDS = [(w, cat) for w, cat in KEYWORD_CATEGORY_MAP.items()]
+
+# ── 관련 기관 홈페이지 (4번째 버튼: "관련 기관 홈페이지"용) ──
+INSTITUTION_LINKS = [
+    {"name": "교육부", "url": "https://www.moe.go.kr", "category": "policy"},
+    {"name": "국가교육위원회", "url": "https://www.ne.go.kr", "category": "policy"},
+    {"name": "정책브리핑(korea.kr)", "url": "https://www.korea.kr/briefing/pressReleaseList.do", "category": "policy"},
+    {"name": "한국교육신문", "url": "https://www.hangyo.com", "category": "policy"},
+    {"name": "KERIS", "url": "https://www.keris.or.kr", "category": "education"},
+    {"name": "KEDI", "url": "https://www.kedi.re.kr", "category": "education"},
+    {"name": "교육정책네트워크(KEDI)", "url": "https://edpolicy.kedi.re.kr", "category": "education"},
+    {"name": "한국교육과정평가원(KICE)", "url": "https://www.kice.re.kr", "category": "education"},
+    {"name": "전교조", "url": "https://www.eduhope.net", "category": "education"},
+    {"name": "교과서민원바로처리센터", "url": "https://www.textbook114.com", "category": "education"},
+    {"name": "에듀플러스뉴스", "url": "https://www.eduplusnews.com", "category": "education"},
+    {"name": "한국과학창의재단(KOSAC)", "url": "https://www.kosac.re.kr", "category": "science"},
+    {"name": "과학기술정보통신부", "url": "https://www.msit.go.kr", "category": "science"},
+    {"name": "지능형과학실 ON", "url": "https://science-on.kosac.re.kr/", "category": "science"},
+    {"name": "국립중앙과학관", "url": "https://www.science.go.kr/mps/index.do", "category": "science"},
+    {"name": "한국과학교육학회", "url": "https://jkase.jams.or.kr/co/main/jmMain.kci", "category": "science"},
+    {"name": "영재교육종합시스템", "url": "https://ged.kedi.re.kr/index.do", "category": "science"},
+]
 
 # 수집 시간 기준 (직전 24시간)
 COLLECTION_WINDOW_HOURS = 24

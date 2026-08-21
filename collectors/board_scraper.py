@@ -88,10 +88,11 @@ def _fetch_with_retry(url: str, attempts: int = 2, timeout: int = 20):
     raise last_err
 
 
-def scrape_board_generic(source: dict, window_start: datetime, window_end: datetime, max_items: int = 15) -> list:
+def scrape_board_generic(source: dict, window_start: datetime, window_end: datetime, max_items: int = 15):
     """
     source: {"name", "category", "list_url", "base_url"}
     게시판 목록 페이지에서 제목+링크+(있으면)날짜를 긁어옵니다.
+    반환: (items, ok) - ok=False면 접속 자체가 실패한 것
     """
     items = []
 
@@ -100,11 +101,9 @@ def scrape_board_generic(source: dict, window_start: datetime, window_end: datet
         resp.encoding = resp.apparent_encoding
     except Exception as e:
         print(f"[크롤링 오류] {source['name']}: {e}")
-        return items
+        return items, False
 
     soup = BeautifulSoup(resp.text, "html.parser")
-
-    # 게시판은 보통 목록이 <li> 또는 <tr> 단위로 구성됨
     candidates = soup.select("li, tr")
 
     seen_links = set()
@@ -126,7 +125,6 @@ def scrape_board_generic(source: dict, window_start: datetime, window_end: datet
         row_text = el.get_text(" ", strip=True)
         published_dt = _find_date_in_text(row_text)
 
-        # 날짜를 못 찾으면 진짜 공지가 아닐 가능성이 높아 제외
         if not published_dt:
             continue
         if published_dt < window_start or published_dt > window_end:
@@ -143,13 +141,16 @@ def scrape_board_generic(source: dict, window_start: datetime, window_end: datet
         if len(items) >= max_items:
             break
 
-    return items
+    return items, True
 
 
-def scrape_all_boards(board_sources: list, window_start: datetime, window_end: datetime) -> list:
+def scrape_all_boards(board_sources: list, window_start: datetime, window_end: datetime):
     all_items = []
+    failed = []
     for src in board_sources:
-        found = scrape_board_generic(src, window_start, window_end)
-        print(f"[크롤링] {src['name']}: {len(found)}건 수집 (휴리스틱 - 검증 필요)")
+        found, ok = scrape_board_generic(src, window_start, window_end)
+        print(f"[크롤링] {src['name']}: {len(found)}건 수집" + ("" if ok else " (접속 실패)"))
         all_items.extend(found)
-    return all_items
+        if not ok:
+            failed.append({"name": src["name"], "url": src["list_url"], "category": src["category"]})
+    return all_items, failed
