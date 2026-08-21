@@ -96,7 +96,7 @@ def main():
     archive_store.save_day(all_items, today_str)
 
     # 2) 오늘자 메인/카테고리 페이지 생성
-    generate_today_pages(all_items, today_str, "output")
+    generate_today_pages(all_items, today_str, "output", failed_sources=failed_sources)
 
     # 2-1) 관련 기관 홈페이지 링크 모음 페이지 생성
     generate_links_page(INSTITUTION_LINKS, "output")

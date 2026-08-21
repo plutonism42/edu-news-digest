@@ -114,6 +114,17 @@ BASE_STYLE = """
   .inst-list li { padding: 12px 0; border-bottom: 1px solid #e5e5e0; }
   .inst-list a { color: #1a1a1a; text-decoration: none; font-weight: 600; font-size: 15px; }
   .inst-list a:hover { text-decoration: underline; }
+  .failed-box {
+    background: #fff8e6; border: 1px solid #f5d98c; border-radius: 12px;
+    padding: 14px 16px; margin: 16px 0; font-size: 13px;
+  }
+  .failed-box .failed-title { font-weight: 800; color: #92650a; margin-bottom: 6px; }
+  .failed-box .failed-desc { color: #8a6d1f; margin-bottom: 10px; font-size: 12px; }
+  .failed-box ul { list-style: none; padding: 0; margin: 0; }
+  .failed-box li { padding: 6px 0; border-top: 1px solid #f0e0b0; }
+  .failed-box li:first-child { border-top: none; }
+  .failed-box a { color: #92650a; font-weight: 700; text-decoration: none; }
+  .failed-box a:hover { text-decoration: underline; }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -340,7 +351,27 @@ def _tabs_html(active_key: str, category_hrefs: dict) -> str:
     return '<div class="tabs">' + "\n".join(parts) + "</div>"
 
 
-def generate_today_pages(items: list, date_str: str, output_dir: str):
+def _failed_sources_html(failed_sources: list) -> str:
+    if not failed_sources:
+        return ""
+
+    # 원래 게시판 목록 URL(list_url)이 있으면 그쪽으로, RSS만 있으면 RSS 주소로 연결
+    rows = "\n".join(
+        f'<li><a href="{f.get("url")}" target="_blank" rel="noopener">{f["name"]}</a></li>'
+        for f in failed_sources
+    )
+    return f"""
+<div class="failed-box">
+  <div class="failed-title">⚠️ 오늘 접속이 안 된 사이트 ({len(failed_sources)}개)</div>
+  <div class="failed-desc">네트워크 문제로 자동 수집에 실패했어요. 새 소식이 있을 수 있으니 직접 확인해보세요.</div>
+  <ul>
+    {rows}
+  </ul>
+</div>
+"""
+
+
+def generate_today_pages(items: list, date_str: str, output_dir: str, failed_sources: list = None):
     """오늘자 index.html + 카테고리별 전체 페이지(education/science/policy.html) 생성"""
     os.makedirs(output_dir, exist_ok=True)
     now_kst = datetime.now(KST)
@@ -354,6 +385,7 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
     refresh_btn = _refresh_button_html(date_str)
     landing = _landing_buttons_html(by)
     links_btn = _links_button_html()
+    failed_html = _failed_sources_html(failed_sources)
     body = f"""
 <h1>📰 교육·과학·정책 데일리 다이제스트</h1>
 <div class="updated">{updated_str} 기준 · 최근 24시간 수집</div>
@@ -361,6 +393,7 @@ def generate_today_pages(items: list, date_str: str, output_dir: str):
 {landing}
 {links_btn}
 {refresh_btn}
+{failed_html}
 <div><a class="archivelink" href="archive/index.html">📂 지난 기록 전체 보기 →</a></div>
 """
     html = PAGE_SHELL.format(title="교육·과학·정책 데일리 다이제스트", style=BASE_STYLE, body=body)
