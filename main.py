@@ -17,7 +17,6 @@ import archive_store
 KST = timezone(timedelta(hours=9))
 COLLECTION_ANCHOR_HOUR = 10  # 매일 오전 10시 기준
 
-
 # 겹치는 기사의 우선순위 (앞에 있을수록 우선순위 높음)
 CATEGORY_PRIORITY = ["science", "education", "policy"]
 
@@ -29,7 +28,7 @@ def dedupe_and_prioritize(items: list, priority_order: list) -> list:
     - 나머지 겹치는 카테고리는 'related_categories'에 기록 (화면에 작은 배지로 표시됨)
     """
     groups = {}
-    order = []  # 최초 등장 순서 보존
+    order = []
     for it in items:
         key = it["title"].strip()
         if key not in groups:
@@ -67,10 +66,10 @@ def main():
     print(f"[수집 범위] {window_start.strftime('%Y-%m-%d %H:%M')} ~ "
           f"{window_end.strftime('%Y-%m-%d %H:%M')} (고정 24시간)")
 
-    all_items = []
     rss_items, rss_failed = collect_all_rss(RSS_SOURCES, window_start, window_end)
     board_items, board_failed = scrape_all_boards(BOARD_SOURCES, window_start, window_end)
     naver_items = collect_all_naver(NAVER_KEYWORDS, window_start, window_end)
+
     all_items = rss_items + board_items + naver_items
     failed_sources = rss_failed + board_failed
 
@@ -81,7 +80,6 @@ def main():
     # ── 안전장치: 0건이면 "오늘 진짜 소식이 없는 날"이 아니라
     # 네트워크 차단 등으로 전면 수집 실패했을 가능성이 훨씬 높음.
     # 이 경우 기존 데이터/페이지를 절대 덮어쓰지 않고 실패로 종료한다.
-    # (last_run_time도 갱신 안 해서, 다음 성공 실행 때 놓친 구간을 자동으로 다시 수집함)
     if len(all_items) == 0:
         print("\n[경고] 수집된 항목이 0건입니다. 네트워크 차단/타임아웃으로 인한 "
               "전면 실패로 판단하여 기존 데이터를 보존하고 실패로 종료합니다.")
@@ -93,10 +91,13 @@ def main():
     today_str = window_end.strftime("%Y-%m-%d")
 
     # 1) 오늘자 데이터를 영구 저장 (data/YYYY-MM-DD.json, 이후 git에 커밋됨)
+    #    같은 날짜에 여러 번 실행되면 기존 데이터와 합쳐짐 (archive_store.save_day 참고)
     archive_store.save_day(all_items, today_str)
 
     # 2) 오늘자 메인/카테고리 페이지 생성
-    generate_today_pages(all_items, today_str, "output", failed_sources=failed_sources)
+    #    (합쳐진 최신 전체 데이터를 다시 불러와서 화면을 만든다)
+    merged_today_items = dict(archive_store.load_all_days()).get(today_str, all_items)
+    generate_today_pages(merged_today_items, today_str, "output", failed_sources=failed_sources)
 
     # 2-1) 관련 기관 홈페이지 링크 모음 페이지 생성
     generate_links_page(INSTITUTION_LINKS, "output")
@@ -113,4 +114,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

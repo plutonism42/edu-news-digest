@@ -2,14 +2,13 @@
 """
 RSS가 없는 기관 게시판을 크롤링합니다.
 사이트마다 HTML 구조가 달라서, 우선은 '날짜 패턴이 붙은 링크'를 찾는
-범용(휴리스틱) 방식으로 동작합니다. 정확도가 필요한 사이트는
-SITE_SPECIFIC 안에 개별 파서를 추가해서 덮어씁니다.
+범용(휴리스틱) 방식으로 동작합니다.
 """
 import re
 import time
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 
 HEADERS = {
@@ -21,6 +20,13 @@ DATE_PATTERNS = [
     (r"(\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})", "%y-%m-%d"),    # 26.08.09
 ]
 
+# 제목 뒤에 흔히 따라붙는 부가정보 (이 단어가 나오면 그 이전까지만 제목으로 인정)
+JUNK_MARKERS = [
+    "첨부파일", "조회수", "작성자", "등록일", "작성부서", "담당부서",
+    "new", "New", "NEW", "hit", "Hit", "HIT", "조회", "다운로드",
+]
+
+MAX_TITLE_LENGTH = 60
 
 BLACKLIST_KEYWORDS = [
     "소개", "연혁", "오시는길", "찾아오시는", "조직도", "조직 안내", "조직·부서",
@@ -31,16 +37,6 @@ BLACKLIST_KEYWORDS = [
     "네이버 블로그", "네이버 밴드", "바로가기", "홈페이지 바로가기",
     "API신청", "의견조사", "알림·참여",
 ]
-
-
-# 제목 뒤에 흔히 따라붙는 부가정보 (이 단어가 나오면 그 이전까지만 제목으로 인정)
-JUNK_MARKERS = [
-    "첨부파일", "조회수", "작성자", "등록일", "작성부서", "담당부서",
-    "new", "New", "NEW", "hit", "Hit", "HIT", "조회", "다운로드",
-]
-
-
-MAX_TITLE_LENGTH = 60
 
 
 def _clean_title(title: str) -> str:
@@ -91,7 +87,6 @@ def _fetch_with_retry(url: str, attempts: int = 2, timeout: int = 20):
 def scrape_board_generic(source: dict, window_start: datetime, window_end: datetime, max_items: int = 15):
     """
     source: {"name", "category", "list_url", "base_url"}
-    게시판 목록 페이지에서 제목+링크+(있으면)날짜를 긁어옵니다.
     반환: (items, ok) - ok=False면 접속 자체가 실패한 것
     """
     items = []
@@ -104,6 +99,8 @@ def scrape_board_generic(source: dict, window_start: datetime, window_end: datet
         return items, False
 
     soup = BeautifulSoup(resp.text, "html.parser")
+
+    # 게시판은 보통 목록이 <li> 또는 <tr> 단위로 구성됨
     candidates = soup.select("li, tr")
 
     seen_links = set()
@@ -125,6 +122,7 @@ def scrape_board_generic(source: dict, window_start: datetime, window_end: datet
         row_text = el.get_text(" ", strip=True)
         published_dt = _find_date_in_text(row_text)
 
+        # 날짜를 못 찾으면 진짜 공지가 아닐 가능성이 높아 제외
         if not published_dt:
             continue
         if published_dt < window_start or published_dt > window_end:

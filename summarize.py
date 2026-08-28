@@ -9,25 +9,21 @@ MODEL = "claude-sonnet-4-6"
 
 CATEGORY_LABELS = {
     "education": "교육",
-    "science": "과학",
     "policy": "정책",
+    "science": "과학",
 }
 
 
 def summarize_items(items: list) -> list:
     """
     각 항목에 1~2줄 요약을 추가합니다.
-    제목만으로 판단이 애매한 경우가 많아 '제목 기반 핵심 포인트'를 생성합니다.
-    (본문 전체를 가져오려면 각 링크를 추가로 fetch해야 하며, 여기서는
-     제목/출처만으로 가벼운 정리를 하는 1차 버전입니다.)
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key or not items:
         for it in items:
-            it["summary"] = ""
+            it["summary"] = it.get("summary", "")
         return items
 
-    # 한 번에 여러 건을 묶어서 요청 (토큰 절약)
     numbered = "\n".join(
         f"{i+1}. [{CATEGORY_LABELS.get(it['category'], it['category'])}/{it['source']}] {it['title']}"
         for i, it in enumerate(items)
@@ -75,6 +71,6 @@ def summarize_items(items: list) -> list:
         summary_map = {}
 
     for i, it in enumerate(items):
-        it["summary"] = summary_map.get(i + 1, "")
+        it["summary"] = summary_map.get(i + 1, it.get("summary", ""))
 
     return items

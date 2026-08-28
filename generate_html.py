@@ -3,10 +3,11 @@
 정적 HTML 페이지 생성기.
 
 생성되는 페이지들:
-- output/index.html            오늘자 종합 요약 (카테고리당 상위 8개 + 더보기)
-- output/education.html        오늘자 "교육" 카테고리 전체 목록
-- output/science.html          오늘자 "과학" 카테고리 전체 목록
-- output/policy.html           오늘자 "정책" 카테고리 전체 목록
+- output/index.html            오늘자 랜딩(큰 버튼 3개 + 시계 + 새로고침 + 실패목록)
+- output/education.html        오늘자 "교육분야" 카테고리 전체 목록
+- output/policy.html           오늘자 "국가정책" 카테고리 전체 목록
+- output/science.html          오늘자 "과학교육" 카테고리 전체 목록
+- output/links.html            관련 기관 홈페이지 링크 모음
 - output/archive/index.html    지금까지 쌓인 날짜별 아카이브 목록
 - output/archive/{날짜}.html    특정 날짜의 종합 다이제스트(그날 전체 항목)
 """
@@ -23,9 +24,12 @@ CATEGORY_LABELS = {k: f"{CATEGORY_EMOJI[k]} {CATEGORY_TEXT[k]}" for k in CATEGOR
 
 CATEGORY_PAGE_FILE = {
     "education": "education.html",
-    "science": "science.html",
     "policy": "policy.html",
+    "science": "science.html",
 }
+
+# 플루토쌤 저장소의 Actions 워크플로 페이지 (새로고침 버튼이 여기로 연결됨)
+GITHUB_ACTIONS_URL = "https://github.com/plutonism42/edu-news-digest/actions/workflows/daily.yml"
 
 BASE_STYLE = """
   body {
@@ -96,17 +100,13 @@ BASE_STYLE = """
   .landing-label { font-size: 19px; font-weight: 800; }
   .landing-count { font-size: 13px; opacity: 0.9; margin-top: 2px; }
   .landing-arrow { font-size: 22px; opacity: 0.85; }
-  .related-badge {
-    display: inline-block; font-size: 11px; color: #7c3aed; background: #f3e8ff;
-    padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700;
-  }
   .links-card {
-    display: flex; align-items: center; gap: 16px;
-    padding: 22px 20px; border-radius: 18px; text-decoration: none;
-    background: #fff; border: 2px solid #e5e5e0; color: #333;
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; border-radius: 14px; text-decoration: none;
+    background: #fff; border: 1px solid #eee; margin: 8px 0 0;
   }
   .links-emoji { font-size: 30px; }
-  .links-label { font-size: 17px; font-weight: 800; }
+  .links-label { font-size: 17px; font-weight: 800; color: #1a1a1a; }
   .links-sub { font-size: 12px; color: #999; margin-top: 2px; }
   .inst-group { margin-bottom: 28px; }
   .inst-group h2 { font-size: 16px; border-bottom: 2px solid #333; padding-bottom: 6px; }
@@ -125,6 +125,10 @@ BASE_STYLE = """
   .failed-box li:first-child { border-top: none; }
   .failed-box a { color: #92650a; font-weight: 700; text-decoration: none; }
   .failed-box a:hover { text-decoration: underline; }
+  .related-badge {
+    display: inline-block; font-size: 11px; color: #7c3aed; background: #f3e8ff;
+    padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700;
+  }
 """
 
 PAGE_SHELL = """<!DOCTYPE html>
@@ -149,125 +153,6 @@ ITEM_TEMPLATE = """<div class="item">
 """
 
 VISIBLE_COUNT_PER_CATEGORY = 8
-
-# 플루토쌤 저장소의 Actions 워크플로 페이지 (버튼이 여기로 연결됨)
-GITHUB_ACTIONS_URL = "https://github.com/plutonism42/edu-news-digest/actions/workflows/daily.yml"
-
-
-def _clock_widget_html(last_updated_iso: str) -> str:
-    """실시간 시계(한국시간) + '마지막 업데이트로부터 N시간 전' 표시"""
-    return f"""
-<div class="clock-box">
-  <div>
-    <div class="now" id="clock-now">--:--:--</div>
-    <div class="date" id="clock-date">-</div>
-  </div>
-  <div class="elapsed" id="clock-elapsed"></div>
-</div>
-<script>
-(function() {{
-  var lastUpdated = new Date("{last_updated_iso}");
-  var nowEl = document.getElementById('clock-now');
-  var dateEl = document.getElementById('clock-date');
-  var elapsedEl = document.getElementById('clock-elapsed');
-  var dateFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }});
-  var timeFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }});
-
-  function tick() {{
-    var now = new Date();
-    nowEl.textContent = timeFmt.format(now);
-    dateEl.textContent = dateFmt.format(now);
-
-    var diffMs = now - lastUpdated;
-    var diffH = Math.floor(diffMs / 3600000);
-    var diffMForRemainder = Math.floor((diffMs % 3600000) / 60000);
-    var text;
-    if (diffH < 1) {{
-      text = diffMForRemainder + '분 전 업데이트';
-    }} else if (diffH < 24) {{
-      text = diffH + '시간 ' + diffMForRemainder + '분 전 업데이트';
-    }} else {{
-      text = Math.floor(diffH / 24) + '일 전 업데이트';
-    }}
-    elapsedEl.innerHTML = '<b>' + text + '</b>';
-  }}
-  tick();
-  setInterval(tick, 1000);
-}})();
-</script>
-"""
-
-
-def _links_button_html() -> str:
-    return """
-<a class="links-card" href="links.html">
-  <div class="links-emoji">🔗</div>
-  <div>
-    <div class="links-label">관련 기관 홈페이지</div>
-    <div class="links-sub">직접 방문해서 확인하기</div>
-  </div>
-</a>"""
-
-
-def generate_links_page(institution_links: list, output_dir: str):
-    """기관별 홈페이지 링크 모음 페이지 생성 (links.html)"""
-    os.makedirs(output_dir, exist_ok=True)
-
-    groups_html = []
-    for cat_key in CATEGORY_ORDER:
-        label = f"{CATEGORY_EMOJI[cat_key]} {CATEGORY_TEXT[cat_key]}"
-        insts = [i for i in institution_links if i["category"] == cat_key]
-        if not insts:
-            continue
-        rows = "\n".join(
-            f'<li><a href="{i["url"]}" target="_blank" rel="noopener">{i["name"]}</a></li>'
-            for i in insts
-        )
-        groups_html.append(f'<div class="inst-group"><h2>{label}</h2><ul class="inst-list">{rows}</ul></div>')
-
-    body = f"""
-<a class="backlink" href="index.html">← 오늘의 다이제스트로</a>
-<h1>🔗 관련 기관 홈페이지</h1>
-<div class="updated">궁금한 기관은 직접 방문해서 최신 소식을 확인해보세요.</div>
-{"".join(groups_html)}
-"""
-    html = PAGE_SHELL.format(title="관련 기관 홈페이지 - 데일리 다이제스트", style=BASE_STYLE, body=body)
-    with open(os.path.join(output_dir, "links.html"), "w", encoding="utf-8") as f:
-        f.write(html)
-
-    print(f"[완료] links.html 생성됨 ({len(institution_links)}개 기관)")
-
-
-def _refresh_button_html(last_updated_date_str: str) -> str:
-    """
-    오늘 이미 업데이트했으면 버튼을 자동으로 비활성화(회색)하고,
-    아니면 GitHub Actions 실행 화면으로 연결되는 버튼을 만듭니다.
-    (보안상 버튼 클릭만으로 바로 실행은 안 되고, GitHub 로그인 상태에서
-     "Run workflow" 버튼을 한 번 더 눌러야 실제 실행됩니다.)
-    """
-    return f"""
-<div class="refresh-wrap">
-  <a id="refresh-btn" class="refresh-btn" href="{GITHUB_ACTIONS_URL}" target="_blank" rel="noopener">🔄 지금 새로고침</a>
-  <div class="refresh-note" id="refresh-note"></div>
-</div>
-<script>
-(function() {{
-  var lastUpdated = "{last_updated_date_str}";
-  var fmt = new Intl.DateTimeFormat('en-CA', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }});
-  var todayKST = fmt.format(new Date()); // YYYY-MM-DD
-  var btn = document.getElementById('refresh-btn');
-  var note = document.getElementById('refresh-note');
-  if (lastUpdated === todayKST) {{
-    btn.classList.add('disabled');
-    btn.textContent = '✅ 오늘은 이미 업데이트했어요';
-    btn.removeAttribute('href');
-    note.textContent = '내일 다시 새로고침할 수 있어요.';
-  }} else {{
-    note.textContent = 'GitHub 로그인 후 "Run workflow" 버튼을 한 번 더 눌러야 실제로 실행돼요.';
-  }}
-}})();
-</script>
-"""
 
 
 def _fmt_published(published_iso: str) -> str:
@@ -327,6 +212,88 @@ def _render_category_block(cat_key: str, label: str, cat_items: list, cap: int) 
     return html
 
 
+def _tabs_html(active_key: str, category_hrefs: dict) -> str:
+    parts = []
+    for cat_key, label in CATEGORY_LABELS.items():
+        cls = ' class="active"' if cat_key == active_key else ""
+        parts.append(f'<a href="{category_hrefs[cat_key]}"{cls}>{label}</a>')
+    return '<div class="tabs">' + "\n".join(parts) + "</div>"
+
+
+def _clock_widget_html(last_updated_iso: str) -> str:
+    """실시간 시계(한국시간) + '마지막 업데이트로부터 N시간 전' 표시"""
+    return f"""
+<div class="clock-box">
+  <div>
+    <div class="now" id="clock-now">--:--:--</div>
+    <div class="date" id="clock-date">-</div>
+  </div>
+  <div class="elapsed" id="clock-elapsed"></div>
+</div>
+<script>
+(function() {{
+  var lastUpdated = new Date("{last_updated_iso}");
+  var nowEl = document.getElementById('clock-now');
+  var dateEl = document.getElementById('clock-date');
+  var elapsedEl = document.getElementById('clock-elapsed');
+  var dateFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }});
+  var timeFmt = new Intl.DateTimeFormat('ko-KR', {{ timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }});
+
+  function tick() {{
+    var now = new Date();
+    nowEl.textContent = timeFmt.format(now);
+    dateEl.textContent = dateFmt.format(now);
+
+    var diffMs = now - lastUpdated;
+    var diffH = Math.floor(diffMs / 3600000);
+    var diffMForRemainder = Math.floor((diffMs % 3600000) / 60000);
+    var text;
+    if (diffH < 1) {{
+      text = diffMForRemainder + '분 전 업데이트';
+    }} else if (diffH < 24) {{
+      text = diffH + '시간 ' + diffMForRemainder + '분 전 업데이트';
+    }} else {{
+      text = Math.floor(diffH / 24) + '일 전 업데이트';
+    }}
+    elapsedEl.innerHTML = '<b>' + text + '</b>';
+  }}
+  tick();
+  setInterval(tick, 1000);
+}})();
+</script>
+"""
+
+
+def _refresh_button_html(last_updated_date_str: str) -> str:
+    """
+    오늘 이미 업데이트했으면 버튼을 자동으로 비활성화(회색)하고,
+    아니면 GitHub Actions 실행 화면으로 연결되는 버튼을 만듭니다.
+    """
+    return f"""
+<div class="refresh-wrap">
+  <a id="refresh-btn" class="refresh-btn" href="{GITHUB_ACTIONS_URL}" target="_blank" rel="noopener">🔄 지금 새로고침</a>
+  <div class="refresh-note" id="refresh-note"></div>
+</div>
+<script>
+(function() {{
+  var lastUpdated = "{last_updated_date_str}";
+  var fmt = new Intl.DateTimeFormat('en-CA', {{ timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }});
+  var todayKST = fmt.format(new Date());
+  var btn = document.getElementById('refresh-btn');
+  var note = document.getElementById('refresh-note');
+  if (lastUpdated === todayKST) {{
+    btn.classList.add('disabled');
+    btn.textContent = '✅ 오늘은 이미 업데이트했어요';
+    btn.removeAttribute('href');
+    note.textContent = '내일 다시 새로고침할 수 있어요.';
+  }} else {{
+    note.textContent = 'GitHub 로그인 후 "Run workflow" 버튼을 한 번 더 눌러야 실제로 실행돼요.';
+  }}
+}})();
+</script>
+"""
+
+
 def _landing_buttons_html(by: dict) -> str:
     cards = []
     for cat_key in CATEGORY_ORDER:
@@ -343,19 +310,22 @@ def _landing_buttons_html(by: dict) -> str:
     return '<div class="landing-grid">' + "".join(cards) + "</div>"
 
 
-def _tabs_html(active_key: str, category_hrefs: dict) -> str:
-    parts = []
-    for cat_key, label in CATEGORY_LABELS.items():
-        cls = ' class="active"' if cat_key == active_key else ""
-        parts.append(f'<a href="{category_hrefs[cat_key]}"{cls}>{label}</a>')
-    return '<div class="tabs">' + "\n".join(parts) + "</div>"
+def _links_button_html() -> str:
+    return """
+<a class="links-card" href="links.html">
+  <div class="links-emoji">🔗</div>
+  <div>
+    <div class="links-label">관련 기관 홈페이지</div>
+    <div class="links-sub">직접 방문해서 확인하기</div>
+  </div>
+</a>
+"""
 
 
 def _failed_sources_html(failed_sources: list) -> str:
     if not failed_sources:
         return ""
 
-    # 원래 게시판 목록 URL(list_url)이 있으면 그쪽으로, RSS만 있으면 RSS 주소로 연결
     rows = "\n".join(
         f'<li><a href="{f.get("url")}" target="_blank" rel="noopener">{f["name"]}</a></li>'
         for f in failed_sources
@@ -372,7 +342,7 @@ def _failed_sources_html(failed_sources: list) -> str:
 
 
 def generate_today_pages(items: list, date_str: str, output_dir: str, failed_sources: list = None):
-    """오늘자 index.html + 카테고리별 전체 페이지(education/science/policy.html) 생성"""
+    """오늘자 index.html(랜딩) + 카테고리별 전체 페이지 생성"""
     os.makedirs(output_dir, exist_ok=True)
     now_kst = datetime.now(KST)
     updated_str = now_kst.strftime("%Y년 %m월 %d일 %H:%M")
@@ -418,6 +388,35 @@ def generate_today_pages(items: list, date_str: str, output_dir: str, failed_sou
     print(f"[완료] index.html + 카테고리별 페이지 생성됨 (총 {len(items)}건)")
 
 
+def generate_links_page(institution_links: list, output_dir: str):
+    """기관별 홈페이지 링크 모음 페이지 생성 (links.html)"""
+    os.makedirs(output_dir, exist_ok=True)
+
+    groups_html = []
+    for cat_key in CATEGORY_ORDER:
+        label = CATEGORY_LABELS[cat_key]
+        group_links = [l for l in institution_links if l["category"] == cat_key]
+        if not group_links:
+            continue
+        rows = "\n".join(
+            f'<li><a href="{l["url"]}" target="_blank" rel="noopener">{l["name"]}</a></li>'
+            for l in group_links
+        )
+        groups_html.append(f'<div class="inst-group"><h2>{label}</h2><ul class="inst-list">{rows}</ul></div>')
+
+    body = f"""
+<a class="backlink" href="index.html">← 오늘의 다이제스트로</a>
+<h1>🔗 관련 기관 홈페이지</h1>
+<div class="updated">자동 수집이 안 되는 곳도 있어 직접 확인할 수 있게 모아뒀어요.</div>
+{''.join(groups_html)}
+"""
+    html = PAGE_SHELL.format(title="관련 기관 홈페이지 - 데일리 다이제스트", style=BASE_STYLE, body=body)
+    with open(os.path.join(output_dir, "links.html"), "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"[완료] links.html 생성됨 ({len(institution_links)}개 기관)")
+
+
 def generate_archive_pages(all_days: list, archive_dir: str):
     """
     all_days: [(date_str, items), ...] 오래된 날짜 -> 최신 날짜 순
@@ -425,7 +424,6 @@ def generate_archive_pages(all_days: list, archive_dir: str):
     """
     os.makedirs(archive_dir, exist_ok=True)
 
-    # ── 날짜별 상세 페이지 ──
     for date_str, items in all_days:
         by_cat = {k: _sort_items([it for it in items if it.get("category") == k]) for k in CATEGORY_LABELS}
         sections = "".join(
@@ -442,7 +440,6 @@ def generate_archive_pages(all_days: list, archive_dir: str):
         with open(os.path.join(archive_dir, f"{date_str}.html"), "w", encoding="utf-8") as f:
             f.write(html)
 
-    # ── 아카이브 목록 (최신 날짜가 위로) ──
     rows = "\n".join(
         f'<li><a href="{date_str}.html">{date_str}</a><span class="count">{len(items)}건</span></li>'
         for date_str, items in reversed(all_days)

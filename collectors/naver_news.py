@@ -2,15 +2,11 @@
 """
 NAVER API HUB(네이버 클라우드 플랫폼)의 뉴스 검색 API로
 키워드 기반 최신 기사를 수집합니다.
-
-2026년 7월 31일부로 기존 개발자센터(openapi.naver.com) 신규 신청이 막히고
-NAVER API HUB(naverapihub.apigw.ntruss.com)로 이관되었습니다.
-인증 헤더 이름이 예전과 다르니 주의하세요.
 """
 import os
 import re
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
 NAVER_API_URL = "https://naverapihub.apigw.ntruss.com/search/v1/news"
@@ -28,7 +24,6 @@ def collect_naver_news(keyword: str, category: str, window_start: datetime, wind
         print("[네이버 API] 키가 설정되지 않아 건너뜁니다. (NAVER_CLIENT_ID / NAVER_CLIENT_SECRET)")
         return []
 
-    # NAVER API HUB 인증 헤더 (예전 X-Naver-Client-Id 방식과 이름이 다름)
     headers = {
         "X-NCP-APIGW-API-KEY-ID": client_id,
         "X-NCP-APIGW-API-KEY": client_secret,
@@ -37,7 +32,7 @@ def collect_naver_news(keyword: str, category: str, window_start: datetime, wind
         "query": keyword,
         "display": display,
         "start": 1,
-        "sort": "date",  # 최신순
+        "sort": "date",
         "format": "json",
     }
 
