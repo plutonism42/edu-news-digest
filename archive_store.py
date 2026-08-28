@@ -11,12 +11,17 @@ import csv
 DATA_DIR = "data"
 
 
-def save_day(items: list, date_str: str):
+def save_day(items: list, date_str: str, valid_sources: set = None):
     """
     같은 날짜에 여러 번 실행되면(예: 오전에 한 번, 오후에 재시도 한 번),
     기존 데이터를 덮어쓰지 않고 겹치지 않는 것만 합쳐서 저장한다.
     (사이트 접속 성공/실패가 매번 랜덤이라, 재시도할 때마다 다른 사이트가
      추가로 잡힐 수 있어 이렇게 하는 게 실질적으로 더 도움이 됨)
+
+    valid_sources가 주어지면, 기존에 저장돼있던 항목 중 "지금 config.py에
+    더 이상 존재하지 않는 소스(예: 삭제한 정책브리핑 검색 등)"에서 온 것은
+    자동으로 걸러내고 버린다. -> 소스를 삭제/교체하면 다음 실행 때 옛날
+    데이터도 자동으로 정리됨.
     """
     os.makedirs(DATA_DIR, exist_ok=True)
     path = os.path.join(DATA_DIR, f"{date_str}.json")
@@ -28,6 +33,15 @@ def save_day(items: list, date_str: str):
                 existing_items = json.load(f)
         except Exception as e:
             print(f"[기존 데이터 로드 오류] {path}: {e}")
+
+    removed_stale = 0
+    if valid_sources is not None:
+        before = len(existing_items)
+        existing_items = [
+            it for it in existing_items
+            if it.get("source") in valid_sources or str(it.get("source", "")).startswith("네이버뉴스 · ")
+        ]
+        removed_stale = before - len(existing_items)
 
     combined = existing_items + items
     seen = set()
@@ -42,7 +56,9 @@ def save_day(items: list, date_str: str):
     added = len(merged) - len(existing_items)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)
-    print(f"[저장] {path} (기존 {len(existing_items)}건 + 새로 {added}건 추가 = 총 {len(merged)}건)")
+
+    stale_note = f", 삭제된 소스 데이터 {removed_stale}건 정리" if removed_stale else ""
+    print(f"[저장] {path} (기존 {len(existing_items)}건 + 새로 {added}건 추가 = 총 {len(merged)}건{stale_note})")
 
 
 def load_all_days() -> list:

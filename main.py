@@ -91,8 +91,10 @@ def main():
     today_str = window_end.strftime("%Y-%m-%d")
 
     # 1) 오늘자 데이터를 영구 저장 (data/YYYY-MM-DD.json, 이후 git에 커밋됨)
-    #    같은 날짜에 여러 번 실행되면 기존 데이터와 합쳐짐 (archive_store.save_day 참고)
-    archive_store.save_day(all_items, today_str)
+    #    같은 날짜에 여러 번 실행되면 기존 데이터와 합쳐지고, config.py에서
+    #    이미 삭제된(더 이상 존재하지 않는) 소스의 옛날 데이터는 자동 정리됨
+    valid_source_names = {s["name"] for s in RSS_SOURCES} | {s["name"] for s in BOARD_SOURCES}
+    archive_store.save_day(all_items, today_str, valid_sources=valid_source_names)
 
     # 2) 오늘자 메인/카테고리 페이지 생성
     #    (합쳐진 최신 전체 데이터를 다시 불러와서 화면을 만든다)
